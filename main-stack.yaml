@@ -19,7 +19,7 @@ Resources:
   VPCStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: https://aws-edr-replication-test.s3.ap-south-1.amazonaws.com/vpc-stack.yaml
+      TemplateURL: https://github.com/prabhugr/aws-elasticdisasterrecovery-cfn/blob/main/vpc-stack.yaml
       Parameters:
         EnvironmentName: !Ref EnvironmentName
         VpcCIDR: 192.168.0.0/16
@@ -33,7 +33,7 @@ Resources:
     Type: AWS::CloudFormation::Stack
     DependsOn: VPCStack
     Properties:
-      TemplateURL: https://aws-edr-replication-test.s3.ap-south-1.amazonaws.com/app-stack.yaml
+      TemplateURL: https://github.com/prabhugr/aws-elasticdisasterrecovery-cfn/blob/main/app-stack.yaml
       Parameters:
         VpcId: !GetAtt VPCStack.Outputs.VpcId
         PublicSubnet1: !GetAtt VPCStack.Outputs.PublicSubnet1
