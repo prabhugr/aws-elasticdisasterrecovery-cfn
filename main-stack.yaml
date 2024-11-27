@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 
-Description: Main stack that orchestrates VPC, Application, and DRS stacks
+Description: Main stack that orchestrates VPC and Application stacks
 
 Parameters:
   EnvironmentName:
@@ -46,21 +46,6 @@ Resources:
         - Key: Environment
           Value: !Ref EnvironmentName
 
-  DRSStack:
-    Type: AWS::CloudFormation::Stack
-    DependsOn: ApplicationStack
-    Properties:
-      TemplateURL: https://aws-edr-replication-test.s3.ap-south-1.amazonaws.com/drs-stack.yaml
-      Parameters:
-        VpcId: !GetAtt VPCStack.Outputs.VpcId
-        PublicSubnet1: !GetAtt VPCStack.Outputs.PublicSubnet1
-        EnvironmentName: !Ref EnvironmentName
-      Tags:
-        - Key: Name
-          Value: !Sub ${EnvironmentName}-drs
-        - Key: Environment
-          Value: !Ref EnvironmentName
-
 Outputs:
   VpcId:
     Description: VPC ID
@@ -79,3 +64,4 @@ Outputs:
     Value: !GetAtt ApplicationStack.Outputs.DBServerIP
     Export:
       Name: !Sub ${AWS::StackName}-DBServerIP
+
