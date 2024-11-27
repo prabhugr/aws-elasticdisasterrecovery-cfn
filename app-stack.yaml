@@ -1,0 +1,220 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Application Stack with App and DB Servers
+
+Parameters:
+  VpcId:
+    Type: String
+    Description: VPC ID from VPC Stack
+  
+  PublicSubnet1:
+    Type: String
+    Description: First Public Subnet ID
+  
+  PublicSubnet2:
+    Type: String
+    Description: Second Public Subnet ID
+  
+  EnvironmentName:
+    Type: String
+    Description: Environment name for resource tagging
+    Default: dev
+  
+  AppServerAMI:
+    Type: String
+    Default: ami-0614680123427b75e
+    Description: AMI ID for Application Server (Orchard Core)
+  
+  DBServerAMI:
+    Type: String
+    Default: ami-0a1696c1d947c1247
+    Description: AMI ID for Database Server (SQL Server)
+  
+  DRSTargetRegion:
+    Type: String
+    Description: AWS Region for DRS agent installation
+
+Resources:
+  DRSAgentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/PowerUserAccess
+        - arn:aws:iam::aws:policy/AWSElasticDisasterRecoveryAgentInstallationPolicy
+        - arn:aws:iam::aws:policy/AmazonSSMPatchAssociation
+        - arn:aws:iam::aws:policy/service-role/AWSElasticDisasterRecoveryEc2InstancePolicy
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      RoleName: !Sub ${EnvironmentName}-DRSAgentRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+
+  DRSAgentInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref DRSAgentRole
+
+  AppServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ports for app-db-server
+      GroupName: !Sub ${EnvironmentName}-app-db-server
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-app-server-sg
+
+  DBServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Ports for db-server-sg
+      GroupName: !Sub ${EnvironmentName}-db-server-sg
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 1433
+          ToPort: 1433
+          SourceSecurityGroupId: !Ref AppServerSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-db-server-sg
+
+  AppServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AppServerAMI
+      InstanceType: t2.large
+      SubnetId: !Ref PublicSubnet1
+      SecurityGroupIds:
+        - !Ref AppServerSecurityGroup
+      IamInstanceProfile: !Ref DRSAgentInstanceProfile
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 8
+            VolumeType: gp3
+            DeleteOnTermination: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-app-server
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: cfn
+          Value: edrs
+      KeyName: mumbai
+      DisableApiTermination: true
+      Monitoring: true
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          wget -O ./aws-replication-installer-init https://aws-elastic-disaster-recovery-us-east-1.s3.us-east-1.amazonaws.com/latest/linux/aws-replication-installer-init
+          chmod +x aws-replication-installer-init
+          echo "${DRSTargetRegion}" | sudo ./aws-replication-installer-init
+
+  DBServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref DBServerAMI
+      InstanceType: r6i.xlarge
+      SubnetId: !Ref PublicSubnet2
+      SecurityGroupIds:
+        - !Ref DBServerSecurityGroup
+      IamInstanceProfile: !Ref DRSAgentInstanceProfile
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 75
+            VolumeType: gp2
+            DeleteOnTermination: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-db-server
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: cfn
+          Value: edrs
+      KeyName: mumbai
+      DisableApiTermination: false
+      Monitoring: false
+      CpuOptions:
+        CoreCount: 2
+        ThreadsPerCore: 2
+      UserData:
+        Fn::Base64: !Sub |
+          <powershell>
+          # Download the DRS agent installer with elevated privileges
+          Start-Process powershell -ArgumentList "-Command Invoke-WebRequest -Uri 'https://aws-elastic-disaster-recovery-ap-south-1.s3.ap-south-1.amazonaws.com/latest/windows/AwsReplicationWindowsInstaller.exe' -OutFile 'C:\AwsReplicationWindowsInstaller.exe'" -Verb RunAs -Wait
+          
+          # Create installation script with elevated privileges
+          $installScript = @"
+          `$region = "${DRSTargetRegion}"
+          Start-Process -FilePath "C:\AwsReplicationWindowsInstaller.exe" -ArgumentList `$region -Wait -NoNewWindow
+          "@
+          
+          $installScript | Out-File -FilePath "C:\install-drs.ps1"
+          
+          # Execute with highest privileges
+          Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File C:\install-drs.ps1" -Verb RunAs -Wait
+          </powershell>
+
+Outputs:
+  AppServerIP:
+    Description: Application Server Private IP
+    Value: !GetAtt AppServer.PrivateIp
+    Export:
+      Name: !Sub ${AWS::StackName}-AppServerIP
+  
+  DBServerIP:
+    Description: Database Server Private IP
+    Value: !GetAtt DBServer.PrivateIp
+    Export:
+      Name: !Sub ${AWS::StackName}-DBServerIP
+  
+  AppServerSecurityGroupId:
+    Description: App Server Security Group ID
+    Value: !Ref AppServerSecurityGroup
+    Export:
+      Name: !Sub ${AWS::StackName}-AppServerSG
+  
+  DBServerSecurityGroupId:
+    Description: DB Server Security Group ID
+    Value: !Ref DBServerSecurityGroup
+    Export:
+      Name: !Sub ${AWS::StackName}-DBServerSG
