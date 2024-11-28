@@ -204,7 +204,7 @@ Resources:
             "/etc/cfn/hooks.d/cfn-auto-reloader.conf":
               content: !Sub |
                 [cfn-auto-reloader-hook]
-                triggers=post.uP1+r436F=323536\P1+rOA\P1+rOB\P1+rOC\P1+rOD\P1+r[1;2H\P1+r[1;2D\P1+r[1;2C\P1+r[1;2F\P1+rOP\P1$r2 q\pdate
+                triggers=post.update
                 path=Resources.EC2Instance.Metadata.AWS::CloudFormation::Init
                 action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}
                 runas=root
@@ -237,7 +237,7 @@ Resources:
                             "file_path": "/var/log/drs-install.log",
                             "log_group_name": "${LogGroup}",
                             "log_stream_name": "{instance_id}/drs-install.log"
-         [?12;2$y                 },
+                          },
                           {
                             "file_path": "/var/log/user-data.log",
                             "log_group_name": "${LogGroup}",
@@ -323,20 +323,20 @@ Resources:
           # Error handler
           error_handler() {
             echo "Error occurred in UserData script" | tee -a /var/log/user-data.log
-            /opt/aws/bin/cfn-signal -e 1 --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}
+            /opt/aws/bin/cfn-signal -e 1 --stack ${AWS::StackName} --resource AppServer --region ${AWS::Region}
             exit 1
           }
           
           trap 'error_handler' ERR
           
           # Start cfn-init with detailed logging
-          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2Instance --configsets default --region ${AWS::Region} 2>&1 | tee -a /var/log/cfn-init-detailed.log
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource AppServer --configsets default --region ${AWS::Region} 2>&1 | tee -a /var/log/cfn-init-detailed.log
           
           # Start cfn-hup
           /opt/aws/bin/cfn-hup || error_handler
           
           # Signal success
-          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AppServer --region ${AWS::Region}
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName}-EC2
