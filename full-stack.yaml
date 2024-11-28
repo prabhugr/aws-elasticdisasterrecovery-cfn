@@ -1,0 +1,426 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'EC2 instances deployment with DRS agent installation, enhanced logging, and PowerUserAccess - Created by Cedric'
+
+Parameters:
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair for SSH/RDP access
+  AppServerAMI:
+    Type: String
+    Default: ami-0614680123427b75e
+    Description: AMI ID for Application Server (Orchard Core)
+  DBServerAMI:
+    Type: String
+    Default: ami-0a1696c1d947c1247
+    Description: AMI ID for Database Server (SQL Server)
+  VpcCidr:
+    Type: String
+    Default: 10.0.0.0/16
+    Description: CIDR block for VPC
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+  PublicSubnet1Cidr:
+    Type: String
+    Default: 10.0.1.0/24
+    Description: CIDR block for public subnet 1
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+  PublicSubnet2Cidr:
+    Type: String
+    Default: 10.0.2.0/24
+    Description: CIDR block for public subnet 2
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+  EnvironmentName:
+    Type: String
+    Default: Dev
+    Description: Environment name for the stack
+
+Resources:
+  DRSAgentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/PowerUserAccess
+        - arn:aws:iam::aws:policy/AWSElasticDisasterRecoveryAgentInstallationPolicy
+        - arn:aws:iam::aws:policy/AmazonSSMPatchAssociation
+        - arn:aws:iam::aws:policy/service-role/AWSElasticDisasterRecoveryEc2InstancePolicy
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      RoleName: !Sub "${AWS::StackName}-${EnvironmentName}-DRSAgentRole"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+
+  DRSAgentInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      InstanceProfileName: !Sub "${AWS::StackName}-${EnvironmentName}-EC2InstanceProfile"
+      Roles:
+        - !Ref DRSAgentRole
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-VPC
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-IGW
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnet1Cidr
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-Public-Subnet-1
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnet2Cidr
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-Public-Subnet-2
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-Public-RT
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${AWS::StackName}-${EnvironmentName}-SG"
+      GroupDescription: Security group for EC2 instances
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-SG
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "${AWS::StackName}-${EnvironmentName}-LogGroup"
+      RetentionInDays: 30
+
+  LogBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-${EnvironmentName}-logs"     
+
+  AppServer:
+    Type: AWS::EC2::Instance
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT30M
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          default:
+            - install_cfn
+            - setup_logging
+            - install_drs
+            - verify_installation
+        install_cfn:
+          packages:
+            yum:
+              amazon-cloudwatch-agent: []
+          files:
+            "/etc/cfn/cfn-hup.conf":
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+                interval=5
+              mode: "000400"
+              owner: "root"
+              group: "root"
+            "/etc/cfn/hooks.d/cfn-auto-reloader.conf":
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.uP1+r436F=323536\P1+rOA\P1+rOB\P1+rOC\P1+rOD\P1+r[1;2H\P1+r[1;2D\P1+r[1;2C\P1+r[1;2F\P1+rOP\P1$r2 q\pdate
+                path=Resources.EC2Instance.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}
+                runas=root
+              mode: "000400"
+              owner: "root"
+              group: "root"
+          commands:
+            01_log_install_cfn:
+              command: "echo 'Completed install_cfn' >> /var/log/cfn-init-steps.log"
+        setup_logging:
+          files:
+            "/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json":
+              content: !Sub |
+                {
+                  "logs": {
+                    "logs_collected": {
+                      "files": {
+                        "collect_list": [
+                          {
+                            "file_path": "/var/log/cloud-init.log",
+                            "log_group_name": "${LogGroup}",
+                            "log_stream_name": "{instance_id}/cloud-init.log"
+                          },
+                          {
+                            "file_path": "/var/log/cfn-init.log",
+                            "log_group_name": "${LogGroup}",
+                            "log_stream_name": "{instance_id}/cfn-init.log"
+                          },
+                          {
+                            "file_path": "/var/log/drs-install.log",
+                            "log_group_name": "${LogGroup}",
+                            "log_stream_name": "{instance_id}/drs-install.log"
+         [?12;2$y                 },
+                          {
+                            "file_path": "/var/log/user-data.log",
+                            "log_group_name": "${LogGroup}",
+                            "log_stream_name": "{instance_id}/user-data.log"
+                          },
+                          {
+                            "file_path": "/var/log/cfn-init-steps.log",
+                            "log_group_name": "${LogGroup}",
+                            "log_stream_name": "{instance_id}/cfn-init-steps.log"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              mode: "000644"
+              owner: "root"
+              group: "root"
+            "/etc/rc0.d/K01upload-logs":
+              content: !Sub |
+                #!/bin/bash
+                aws s3 cp /var/log/cloud-init.log s3://${LogBucket}/${AWS::StackName}/$(curl -s http://169.254.169.254/latest/meta-data/instance-id)/
+                aws s3 cp /var/log/cfn-init.log s3://${LogBucket}/${AWS::StackName}/$(curl -s http://169.254.169.254/latest/meta-data/instance-id)/
+                aws s3 cp /var/log/drs-install.log s3://${LogBucket}/${AWS::StackName}/$(curl -s http://169.254.169.254/latest/meta-data/instance-id)/
+                aws s3 cp /var/log/user-data.log s3://${LogBucket}/${AWS::StackName}/$(curl -s http://169.254.169.254/latest/meta-data/instance-id)/
+                aws s3 cp /var/log/cfn-init-steps.log s3://${LogBucket}/${AWS::StackName}/$(curl -s http://169.254.169.254/latest/meta-data/instance-id)/
+              mode: "000755"
+              owner: "root"
+              group: "root"
+          commands:
+            01_start_cloudwatch_agent:
+              command: |
+                /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+            02_log_setup_logging:
+              command: "echo 'Completed setup_logging' >> /var/log/cfn-init-steps.log"
+        install_drs:
+          commands:
+            01_download_installer:
+              command: !Sub |
+                wget -O ./aws-replication-installer-init https://aws-elastic-disaster-recovery-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/linux/aws-replication-installer-init 2>&1 | tee -a /var/log/drs-install.log
+                chmod +x /home/ec2-user/aws-replication-installer-init
+                echo "DRS installer downloaded and made executable" | tee -a /var/log/drs-install.log
+            02_log_install_drs:
+              command: "echo 'Completed install_drs' >> /var/log/cfn-init-steps.log"
+        verify_installation:
+          commands:
+            01_verify_installer:
+              command: |
+                set -x
+                # Check file exists
+                if [[ ! -f ./aws-replication-installer-init ]]; then
+                  echo "DRS installer not found" | tee -a /var/log/drs-install.log
+                  exit 1
+                fi
+                # Check file size
+                if [[ ! -s ./aws-replication-installer-init ]]; then
+                  echo "DRS installer is empty" | tee -a /var/log/drs-install.log
+                  exit 1
+                fi
+                # Check executable permission
+                if [[ ! -x ./aws-replication-installer-init ]]; then
+                  echo "DRS installer not executable" | tee -a /var/log/drs-install.log
+                  exit 1
+                fi
+                echo "DRS installer verified" | tee -a /var/log/drs-install.log
+            02_log_verify_installation:
+              command: "echo 'Completed verify_installation' >> /var/log/cfn-init-steps.log"
+    Properties:
+      IamInstanceProfile: !Ref DRSAgentInstanceProfile
+      InstanceType: t2.large
+      KeyName: !Ref KeyPairName
+      ImageId: !Ref AppServerAMI
+      SubnetId: !Select [0, [!Ref PublicSubnet1, !Ref PublicSubnet2]]
+      SecurityGroupIds:
+        - !Ref EC2SecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+          
+          yum update -y aws-cfn-bootstrap
+          
+          # Error handler
+          error_handler() {
+            echo "Error occurred in UserData script" | tee -a /var/log/user-data.log
+            /opt/aws/bin/cfn-signal -e 1 --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}
+            exit 1
+          }
+          
+          trap 'error_handler' ERR
+          
+          # Start cfn-init with detailed logging
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2Instance --configsets default --region ${AWS::Region} 2>&1 | tee -a /var/log/cfn-init-detailed.log
+          
+          # Start cfn-hup
+          /opt/aws/bin/cfn-hup || error_handler
+          
+          # Signal success
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-EC2
+
+  DBServer:
+    Type: AWS::EC2::Instance
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT30M
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          files:
+            "C:\\cfn\\cfn-hup.conf":
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+                interval=5
+            "C:\\cfn\\hooks.d\\cfn-auto-reloader.conf":
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.DBServer.Metadata.AWS::CloudFormation::Init
+                command=powershell.exe -Command "C:\cfn\scripts\cfn-init.ps1"
+                
+    Properties:
+      IamInstanceProfile: !Ref DRSAgentInstanceProfile
+      InstanceType: r6i.xlarge
+      KeyName: !Ref KeyPairName
+      ImageId: !Ref DBServerAMI
+      SubnetId: !Select [1, [!Ref PublicSubnet1, !Ref PublicSubnet2]]
+      SecurityGroupIds:
+        - !Ref EC2SecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          <powershell>
+          # Setup logging
+          Start-Transcript -Path C:\cfn\log\user-data.log -Append
+          
+          # Install CloudFormation tools
+          $ErrorActionPreference = "Stop"
+          
+          # Install AWS CLI
+          Invoke-WebRequest -Uri "https://awscli.amazonaws.com/AWSCLIV2.msi" -OutFile "C:\AWSCLIV2.msi"
+          Start-Process msiexec.exe -Wait -ArgumentList '/i C:\AWSCLIV2.msi /qn'
+          
+          # Install CloudWatch agent
+          Invoke-WebRequest -Uri "https://s3.amazonaws.com/amazoncloudwatch-agent/windows/amd64/latest/amazon-cloudwatch-agent.msi" -OutFile "C:\amazon-cloudwatch-agent.msi"
+          Start-Process msiexec.exe -Wait -ArgumentList '/i C:\amazon-cloudwatch-agent.msi /qn'
+          
+          # Download and install DRS agent
+          Invoke-WebRequest -Uri "https://aws-elastic-disaster-recovery-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/windows/AwsReplicationWindowsInstaller.exe" -OutFile "C:\AwsReplicationWindowsInstaller.exe"
+          Start-Process -FilePath "C:\AwsReplicationWindowsInstaller.exe" -ArgumentList "/q" -Wait
+          
+          # Run CFN init
+          C:\Program Files\Amazon\cfn-bootstrap\cfn-init.exe -v --stack ${AWS::StackName} --resource DBServer --region ${AWS::Region}
+          
+          # Signal completion
+          C:\Program Files\Amazon\cfn-bootstrap\cfn-signal.exe -e $LASTEXITCODE --stack ${AWS::StackName} --resource DBServer --region ${AWS::Region}
+          </powershell>
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-DBServer
+
+Outputs:
+  AppServerInstanceId:
+    Description: ID of the created App Server EC2 instance
+    Value: !Ref AppServer
+  AppServerPublicIP:
+    Description: Public IP address of the App Server EC2 instance
+    Value: !GetAtt AppServer.PublicIp
+  AppServerPublicDNS:
+    Description: Public DNS name of the App Server EC2 instance
+    Value: !GetAtt AppServer.PublicDnsName
+  DBServerInstanceId:
+    Description: ID of the created DB Server EC2 instance
+    Value: !Ref DBServer
+  DBServerPublicIP:
+    Description: Public IP address of the DB Server EC2 instance
+    Value: !GetAtt DBServer.PublicIp
+  DBServerPublicDNS:
+    Description: Public DNS name of the DB Server EC2 instance
+    Value: !GetAtt DBServer.PublicDnsName
+  DRSAgentRoleArn:
+    Description: ARN of the DRS Agent IAM Role
+    Value: !GetAtt DRSAgentRole.Arn
