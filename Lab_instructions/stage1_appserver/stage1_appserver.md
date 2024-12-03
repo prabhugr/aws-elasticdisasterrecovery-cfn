@@ -10,7 +10,7 @@
 
 2. Download the installation script:
 ```bash
-wget https://github.com/prabhugr/aws-elasticdisasterrecovery-cfn/blob/642efe12a47e8ebe9b1f2de92e13e6b63a12a3a9/Lab_instructions/stage1_appserver/install_orchardcms.sh
+wget https://raw.githubusercontent.com/prabhugr/aws-elasticdisasterrecovery-cfn/ed56eb8f5577bf8c024d31157fb371f2627c2e34/Lab_instructions/stage1_appserver/install_orchardcms.sh
 chmod +x install_orchardcms.sh
 ```
 
