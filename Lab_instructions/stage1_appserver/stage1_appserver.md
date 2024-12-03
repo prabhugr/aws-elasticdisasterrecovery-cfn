@@ -1,99 +1,54 @@
-# SQL Server Configuration for Orchard CMS
+# Setting up Orchard CMS on Amazon Linux 2023
 
-## 1. RDP Access Setup
-- Open port 3389 in security group for RDP access
-- Get Windows administrator password from EC2 console
-- Use Remote Desktop or EC2 Instance Connect endpoint for connection
+## Prerequisites
+- Amazon Linux 2023 EC2 instance
+- Administrative (sudo) access
 
-## 2. SQL Server Network Configuration
-- Open SQL Server Configuration Manager
-- Navigate to SQL Server Network Configuration > Protocols for MSSQLSERVER
-- Enable TCP/IP protocol
-- Restart SQL Server service
+## Installation Steps
 
-## 3. Database and User Setup
+1. Connect to your EC2 instance using SSH or EC2 Instance Connect
 
-### Enable Mixed Mode Authentication
-```sql
-USE [master]
-GO
-EXEC xp_instance_regwrite N'HKEY_LOCAL_MACHINE', N'Software\Microsoft\MSSQLServer\MSSQLServer', N'LoginMode', REG_DWORD, 2
-GO
+2. Download the installation script:
+```bash
+wget https://github.com/prabhugr/aws-elasticdisasterrecovery-cfn/blob/642efe12a47e8ebe9b1f2de92e13e6b63a12a3a9/Lab_instructions/stage1_appserver/install_orchardcms.sh
+chmod +x install_orchardcms.sh
 ```
 
-### Create Database
-```sql
-CREATE DATABASE Orchard;
-GO
+3. Run the installation script:
+```bash
+./install_orchardcms.sh
 ```
 
-### Create SQL Login and Configure Permissions
-```sql
--- Create Login
-CREATE LOGIN orcharduser WITH PASSWORD = 'YourStrongPassword'
-GO
+## Verification
 
--- Create Database User
-USE Orchard
-GO
-CREATE USER orcharduser FOR LOGIN orcharduser
-GO
+After successful installation, you should see:
+- Nginx running on port 80
+- OrchardCMS service running on port 5000
+- A successful HTTP response from your instance's public IP
 
--- Assign Server Roles (via GUI)
-1. Expand Security folder
-2. Right-click Logins > orcharduser > Properties
-3. Select Server Roles:
-   - dbcreator
-   - public
+You can verify the installation by:
+```bash
+# Check service status
+sudo systemctl status orchardcms
+sudo systemctl status nginx
 
--- Assign Database Roles (via GUI)
-1. Under User Mapping:
-   - Select Orchard database
-   - Check db_owner role
+# Check port bindings
+netstat -tunlp | grep -E ':(80|5000)'
+
+# Verify HTTP response
+curl -I http://<your-instance-public-ip>/
 ```
 
-### Create DateTable for RPO Measurement
-```sql
-USE Orchard;
-GO
-CREATE TABLE DateTable (
-    ID INT IDENTITY(1,1) PRIMARY KEY,
-    DateField DATETIME
-);
-INSERT INTO DateTable (DateField) VALUES (GETDATE());
+## Expected Response
+```http
+HTTP/1.1 200 OK
+Server: nginx/1.26.2
+Content-Type: text/html; charset=utf-8
+X-Powered-By: OrchardCore
 ```
 
-### Timestamp Logging Script
-```sql
-WHILE(1 = 1)
-BEGIN
-    BEGIN TRY
-        UPDATE DateTable SET DateField = GETDATE()
-        WAITFOR DELAY '00:00:01'
-    END TRY
-    BEGIN CATCH
-        SELECT 'some error ' + CAST(GETDATE() AS VARCHAR)
-    END CATCH
-END
-```
-
-## 4. Verify Configuration
-
-### Check User Permissions
-```sql
-SELECT dp.name AS DatabaseRoleName, p.name AS UserName
-FROM sys.database_role_members drm
-JOIN sys.database_principals dp ON dp.principal_id = drm.role_principal_id
-JOIN sys.database_principals p ON p.principal_id = drm.member_principal_id
-WHERE p.name = 'orcharduser';
-```
-
-### Test Network Connectivity
-```powershell
-Get-NetTCPConnection -LocalPort 1433
-```
-
-## 5. Connection String for Orchard Setup
-```
-Server=<DB_SERVER_IP>;Database=Orchard;User Id=orcharduser;Password=<YourStrongPassword>;TrustServerCertificate=True;Encrypt=False
-```
+## Troubleshooting
+If the installation fails, check:
+- Service logs: `journalctl -u orchardcms -f`
+- Nginx logs: `sudo tail -f /var/log/nginx/error.log`
+- Application logs: `sudo tail -f /var/www/orchardcms/MySite/App_Data/logs/orchard-log.txt`
