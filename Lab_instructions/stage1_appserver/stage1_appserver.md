@@ -52,3 +52,21 @@ If the installation fails, check:
 - Service logs: `journalctl -u orchardcms -f`
 - Nginx logs: `sudo tail -f /var/log/nginx/error.log`
 - Application logs: `sudo tail -f /var/www/orchardcms/MySite/App_Data/logs/orchard-log.txt`
+
+## Cleanup and Reset
+If you need to start fresh or remove the installation:
+
+Download the cleanup script:
+
+```bash
+wget https://raw.githubusercontent.com/prabhugr/aws-elasticdisasterrecovery-cfn/main/Lab_instructions/stage1_appserver/cleanup_orchardcms.sh
+chmod +x cleanup_orchardcms.sh
+```
+    
+Run the cleanup script:
+
+```bash
+./cleanup_orchardcms.sh
+```
+
+This will remove all OrchardCMS components and allow you to start the installation process again.
