@@ -88,12 +88,18 @@ JOIN sys.database_principals p ON p.principal_id = drm.member_principal_id
 WHERE p.name = 'orcharduser';
 ```
 
+## 5. Restart SQL Server Service
+In PowerShell:
+```powershell
+Restart-Service -Name MSSQLSERVER -Force
+```
+
 ### Test Network Connectivity
 ```powershell
 Get-NetTCPConnection -LocalPort 1433
 ```
 
-## 5. Connection String for Orchard Setup
+## 6. Connection String for Orchard Setup
 ```
 Server=<DB_SERVER_IP>;Database=Orchard;User Id=orcharduser;Password=<YourStrongPassword>;TrustServerCertificate=True;Encrypt=False
 ```
