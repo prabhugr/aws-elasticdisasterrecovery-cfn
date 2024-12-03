@@ -77,6 +77,13 @@ BEGIN
 END
 ```
 
+### Test DateTable setup:
+
+```sql
+-- Verify DateTable structure and data
+SELECT * FROM DateTable;
+```
+
 ## 4. Verify Configuration
 
 ### Check User Permissions
