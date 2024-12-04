@@ -1,10 +1,6 @@
-## Initiate Recovery Drill from Elastic Disaster Recovery Console
+## Data Replication of Source Servers
 
-### Step 1: Stop the instances (Appserver and DBserver) to recover in the targetted region
-
-![Image13_RD_StopInstances.png](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/Images/Image13_RD_StopInstances.png)
-
-### Step 2: From the Elastic Disaster Recovery Console initiate the Recovery Drill
+### Step 1: From the Elastic Disaster Recovery Console monitor the status of Data Replication
 
 ![Image14_RD_InitaiteRecoveryDrill.png](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/Images/Image14_RD_InitaiteRecoveryDrill.png)
 

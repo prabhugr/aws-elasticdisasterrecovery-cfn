@@ -21,11 +21,15 @@ EXEC xp_instance_regwrite N'HKEY_LOCAL_MACHINE', N'Software\Microsoft\MSSQLServe
 GO
 ```
 
+[Ref:Enable Mixed Mode Authentication](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/Images/Image5_EnableMixedModeAuthentication.png)
+
 ### Create Database
 ```sql
 CREATE DATABASE Orchard;
 GO
 ```
+
+[Ref:Create Database](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/Images/Image6_CreateDB.png)
 
 ### Create SQL Login and Configure Permissions
 ```sql
@@ -52,6 +56,12 @@ GO
    - Check db_owner role
 ```
 
+[Ref:Create Database User](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/Images/Image7_CreateDBUser.png)
+
+[Ref:Assign Server Roles](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/Images/Image8_UserServerRoles.png)
+
+[Ref:Assign Database Roles](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/Images/Image9_UserMapping.png)
+
 ### Create DateTable for RPO Measurement
 ```sql
 USE Orchard;
@@ -62,6 +72,8 @@ CREATE TABLE DateTable (
 );
 INSERT INTO DateTable (DateField) VALUES (GETDATE());
 ```
+
+[Ref:Create DateTable for RPO Measurement](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/Images/Image10_CreateDateTableforRPOMeasurement.png)
 
 ### Timestamp Logging Script
 ```sql
