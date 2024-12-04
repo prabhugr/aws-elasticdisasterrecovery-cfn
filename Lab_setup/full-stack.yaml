@@ -241,11 +241,9 @@ Resources:
 
   AppServer:
     Type: AWS::EC2::Instance
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
     CreationPolicy:
       ResourceSignal:
-        Timeout: PT30M
+        Timeout: PT15M
     Metadata:
       AWS::CloudFormation::Init:
         configSets:
