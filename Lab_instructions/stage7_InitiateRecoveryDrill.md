@@ -11,3 +11,7 @@
 ### Step 3: If everything is successful, Recovery Instances will be created as follows
 
 ![Image20_RecoveredInstances.png](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/Images/Image20_RecoveredInstances.png)
+
+### Step 4: Login to the DB server, to check the RPO.
+
+![Image21_VerifyRPO.png](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/Images/Image21_VerifyRPO.png)
