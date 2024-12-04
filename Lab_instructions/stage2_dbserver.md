@@ -21,6 +21,8 @@ EXEC xp_instance_regwrite N'HKEY_LOCAL_MACHINE', N'Software\Microsoft\MSSQLServe
 GO
 ```
 
+[Ref:Enable Mixed Mode Authentication](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/Images/Image5_EnableMixedModeAuthentication.png)
+
 ### Create Database
 ```sql
 CREATE DATABASE Orchard;
