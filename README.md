@@ -35,13 +35,13 @@ This project provides an automated deployment of a disaster recovery environment
 
 ## Instructions
 
-[stage1_appserver](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/stage1_appserver.md)
-[stage2_dbserver](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/stage2_dbserver.md)
-[stage3_setupAppwithDBserver](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/stage3_setupAppwithDBserver.md)
-[stage4_DRSAgentInstallation](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/stage4_DRSAgentInstallation.md)
-[stage5_DRSsetting](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/stage5_DRSsetting.md)
-[stage6_DataReplication](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/stage6_DataReplication.md)
-[stage7_InitiateRecoveryDrill](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/stage7_InitiateRecoveryDrill.md)
+- [stage1_appserver](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/stage1_appserver.md)
+- [stage2_dbserver](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/stage2_dbserver.md)
+- [stage3_setupAppwithDBserver](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/stage3_setupAppwithDBserver.md)
+- [stage4_DRSAgentInstallation](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/stage4_DRSAgentInstallation.md)
+- [stage5_DRSsetting](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/stage5_DRSsetting.md)
+- [stage6_DataReplication](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/stage6_DataReplication.md)
+- [stage7_InitiateRecoveryDrill](https://github.com/prabhugr/aws-elasticdisasterrecovery-demo/blob/main/Lab_instructions/stage7_InitiateRecoveryDrill.md)
 
 
 ## 💡 Features
