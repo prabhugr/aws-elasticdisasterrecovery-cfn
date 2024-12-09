@@ -1,5 +1,5 @@
-# AWS Elastic Disaster Recovery (DRS) Demo with Orchard CMS
-Infrastructure as Code implementation for deploying a two-tier application with automated disaster recovery configuration using AWS CloudFormation.
+# AWS Elastic Disaster Recovery (DRS) Demo
+Using AWS CloudFormation for deploying a two-tier application and configuring AWS Elastic Disaster Recovery to automate disaster recovery.
 
 ## 🎯 Overview
 This project provides an automated deployment of a disaster recovery environment for Orchard CMS and SQL Server using AWS DRS. The solution achieves sub-second RPO and minutes-level RTO through Infrastructure as Code.
@@ -28,13 +28,6 @@ This project provides an automated deployment of a disaster recovery environment
    - EC2 key pair for instance access
 
 2. Deploy using CloudFormation:
-```bash
-aws cloudformation create-stack \
-  --stack-name drs-demo \
-  --template-body file://template.yaml \
-  --parameters ParameterKey=KeyPairName,ParameterValue=your-key-pair \
-  --capabilities CAPABILITY_NAMED_IAM
-```
 
 ## 💡 Features
 
@@ -71,26 +64,9 @@ BEGIN
 END
 ```
 
-## 🛠️ Infrastructure Details
-
-### Network Configuration
-| Resource | CIDR |
-|----------|------|
-| VPC | 10.0.0.0/16 |
-| Public Subnet 1 | 10.0.1.0/24 |
-| Public Subnet 2 | 10.0.2.0/24 |
-
-### Security Groups
-- SSH (22)
-- RDP (3389)
-- HTTP (80)
-- HTTPS (443)
-- SQL Server (1433)
-
 ## 📝 Configuration Files
-- `template.yaml`: Main CloudFormation template
-- `amazon-cloudwatch-agent.json`: CloudWatch agent configuration
-- `user-data` scripts for automated setup
+- `full-stack.yaml`: Main CloudFormation template
+- `install_orchardcms.sh` scripts for automated AppServer setup
 
 ## 🔄 Recovery Testing Process
 1. Deploy CloudFormation stack
